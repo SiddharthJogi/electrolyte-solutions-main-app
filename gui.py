@@ -96,7 +96,21 @@ class ConverterApp(QMainWindow):
         # Add dark mode toggle as a visible switch
         self.dark_mode_switch = QCheckBox('Dark Mode')
         self.dark_mode_switch.setChecked(False)
-        self.dark_mode_switch.setStyleSheet('QCheckBox { font-size: 16px; padding: 6px 16px; }')
+        # Set a visible style for the dark mode switch in both themes
+        self.dark_mode_switch.setStyleSheet('''
+            QCheckBox {
+                font-size: 16px;
+                padding: 6px 16px;
+                background: #fff;
+                color: #222;
+                border: 1px solid #6C9DFE;
+                border-radius: 8px;
+            }
+            QCheckBox::indicator {
+                width: 18px;
+                height: 18px;
+            }
+        ''')
         self.dark_mode_switch.stateChanged.connect(self.toggle_dark_mode)
         # Place at top-right
         top_bar = QHBoxLayout()
@@ -207,7 +221,7 @@ class ConverterApp(QMainWindow):
                 QTabBar::tab:hover { background: #e6e6e6; color: #6C9DFE; }
                 QStatusBar { background: #23272e; border-top: 1px solid #444; font-size: 15px; padding: 6px 16px; border-radius: 0 0 12px 12px; }
                 QListWidget { border-radius: 12px; border: 1px solid #444; margin: 8px 0; font-size: 15px; }
-                QCheckBox { color: #f0f0f0; }
+                QCheckBox { background: #23272e; color: #f0f0f0; border: 1px solid #6C9DFE; border-radius: 8px; }
             """)
         else:
             self.setStyleSheet("""
@@ -221,7 +235,7 @@ class ConverterApp(QMainWindow):
                 QTabBar::tab:hover { background: #e6e6e6; color: #6C9DFE; }
                 QStatusBar { background: #f0f0f0; border-top: 1px solid #e0e0e0; font-size: 15px; padding: 6px 16px; border-radius: 0 0 12px 12px; }
                 QListWidget { border-radius: 12px; border: 1px solid #e0e0e0; margin: 8px 0; font-size: 15px; }
-                QCheckBox { color: #030408; }
+                QCheckBox { background: #fff; color: #222; border: 1px solid #6C9DFE; border-radius: 8px; }
             """)
 
     def convert_files(self):
