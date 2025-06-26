@@ -1,0 +1,67 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+dist/
+*.egg-info/
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Database
+*.db
+*.sqlite
+conversion_logs.db
+
+# Data/output files
+*.csv
+*.xlsx
+*.zip
+context.txt
+context.exe
+
+# Binaries and external dependencies
+*.exe
+*.dll
+*.pdb
+*.xml
+*.config
+
+# Electrolyte binaries
+/electrolyte/Feed_Electrolyte-*/Feed_Electrolyte/Debug/
+
+# VS Code
+.vscode/
+
+# Mac/Windows hidden files
+.DS_Store
+Thumbs.db
+
+# Ignore PyInstaller output
+*.manifest
+*.spec 
