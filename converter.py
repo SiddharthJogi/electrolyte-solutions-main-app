@@ -1,3 +1,4 @@
+# Simple internal tool for single-user CRM report conversion.
 import pandas as pd
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
