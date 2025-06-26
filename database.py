@@ -1,4 +1,3 @@
-# Simple internal tool for single-user CRM report conversion.
 import sqlite3
 from datetime import datetime
 DB_PATH = "conversion_logs.db"

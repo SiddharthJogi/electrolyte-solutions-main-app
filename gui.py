@@ -1,9 +1,8 @@
-
 import sys
 import os
 import configparser
 from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QLabel, QPushButton, QFileDialog, QVBoxLayout, QHBoxLayout, QTabWidget, QStatusBar, QSizePolicy, QSpacerItem, QMessageBox, QListWidget, QListWidgetItem, QCheckBox, QProgressBar, QDialog, QTableWidget, QTableWidgetItem, QHeaderView
+    QApplication, QMainWindow, QWidget, QLabel, QPushButton, QFileDialog, QVBoxLayout, QHBoxLayout, QTabWidget, QStatusBar, QFrame, QSizePolicy, QSpacerItem, QMessageBox, QListWidget, QListWidgetItem, QSplashScreen, QCheckBox, QProgressBar, QDialog, QTableWidget, QTableWidgetItem, QHeaderView
 )
 from PyQt6.QtGui import QPixmap, QIcon, QPainter, QColor, QBrush, QAction
 from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve
@@ -18,6 +17,34 @@ COMPANY_COLORS = {
     'dark': '#030408',
     'white': '#FFFFFF'
 }
+
+class SplashScreen(QSplashScreen):
+    def __init__(self):
+        pixmap = QPixmap(LOGO_PATH).scaledToHeight(180, Qt.TransformationMode.SmoothTransformation)
+        # Create a white background pixmap
+        bg = QPixmap(pixmap.width(), pixmap.height())
+        bg.fill(QColor(COMPANY_COLORS['white']))
+        painter = QPainter(bg)
+        painter.drawPixmap(0, 0, pixmap)
+        painter.end()
+        super().__init__(bg)
+        self.setWindowFlag(Qt.WindowType.FramelessWindowHint)
+        self.setStyleSheet(f"background: {COMPANY_COLORS['white']};")
+        self.showMessage("Loading Electrolyte CRM Tool...", Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignCenter, Qt.GlobalColor.black)
+
+class AnimatedTabWidget(QTabWidget):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.currentChanged.connect(self.animate_tab)
+        self.anim = QPropertyAnimation(self, b"windowOpacity")
+        self.anim.setDuration(300)
+        self.anim.setEasingCurve(QEasingCurve.Type.InOutQuad)
+    def animate_tab(self, idx):
+        self.setWindowOpacity(0.7)
+        self.anim.stop()
+        self.anim.setStartValue(0.7)
+        self.anim.setEndValue(1.0)
+        self.anim.start()
 
 class ConverterApp(QMainWindow):
     def __init__(self):
@@ -69,6 +96,7 @@ class ConverterApp(QMainWindow):
         # Add dark mode toggle as a visible switch
         self.dark_mode_switch = QCheckBox('Dark Mode')
         self.dark_mode_switch.setChecked(False)
+        # Set a visible style for the dark mode switch in both themes
         self.dark_mode_switch.setStyleSheet('''
             QCheckBox {
                 font-size: 16px;
@@ -89,7 +117,7 @@ class ConverterApp(QMainWindow):
         top_bar.addStretch(1)
         top_bar.addWidget(self.dark_mode_switch)
         main_layout.insertLayout(0, top_bar)
-        tabs = QTabWidget()
+        tabs = AnimatedTabWidget()
         tabs.setTabPosition(QTabWidget.TabPosition.North)
         tabs.setStyleSheet('QTabBar::tab { font-size: 18px; padding: 12px 32px; min-height: 40px; }')
         # Convert Tab
@@ -112,6 +140,7 @@ class ConverterApp(QMainWindow):
         self.convert_button = QPushButton("Convert to XLSX (Batch)")
         self.convert_button.clicked.connect(self.convert_files)
         btn_layout.addWidget(self.convert_button)
+        # Add progress bar
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
         convert_layout.addWidget(self.progress_bar)
@@ -122,17 +151,25 @@ class ConverterApp(QMainWindow):
         self.status_bar = QStatusBar()
         main_layout.addWidget(self.status_bar)
         tabs.addTab(convert_tab, QIcon(LOGO_PATH), "Convert")
-        # History Tab
+        # History Tab (placeholder)
         history_tab = QWidget()
         history_layout = QVBoxLayout(history_tab)
-        history_label = QLabel("Conversion history and logs will appear here.")
-        history_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        history_label.setStyleSheet("font-size: 18px; color: #888;")
+        history_label = QLabel("Conversion History")
+        history_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        history_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #6C9DFE;")
         history_layout.addWidget(history_label)
+        self.history_table = QTableWidget(0, 4)
+        self.history_table.setHorizontalHeaderLabels(["Date", "Input File", "Output File", "Status"])
+        self.history_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.history_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.history_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.history_table.setStyleSheet("font-size: 15px; background: #fff; border-radius: 12px;")
+        history_layout.addWidget(self.history_table)
         tabs.addTab(history_tab, "History")
         main_layout.addWidget(tabs)
         self.csv_paths = []
         self.output_path = ""
+        # Drag-and-drop support
         self.file_list.setAcceptDrops(True)
         self.file_list.dragEnterEvent = self.dragEnterEvent
         self.file_list.dropEvent = self.dropEvent
@@ -283,22 +320,13 @@ class ConverterApp(QMainWindow):
         c.execute("SELECT filename, converted_at, status, rows FROM logs ORDER BY converted_at DESC LIMIT 100")
         rows = c.fetchall()
         conn.close()
-        table = QTableWidget(len(rows), 4)
-        table.setHorizontalHeaderLabels(["File", "Converted At", "Status", "Rows"])
+        self.history_table.setRowCount(len(rows))
         for row, (filename, converted_at, status, nrows) in enumerate(rows):
-            table.setItem(row, 0, QTableWidgetItem(filename))
-            table.setItem(row, 1, QTableWidgetItem(converted_at))
-            table.setItem(row, 2, QTableWidgetItem(status))
-            table.setItem(row, 3, QTableWidgetItem(str(nrows)))
-        table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        # Replace the placeholder in the history tab
-        history_tab = self.centralWidget().findChild(QTabWidget).widget(1)
-        layout = history_tab.layout()
-        for i in reversed(range(layout.count())):
-            widget = layout.itemAt(i).widget()
-            if widget:
-                widget.setParent(None)
-        layout.addWidget(table)
+            self.history_table.setItem(row, 0, QTableWidgetItem(converted_at))
+            self.history_table.setItem(row, 1, QTableWidgetItem(filename))
+            self.history_table.setItem(row, 2, QTableWidgetItem(f"{os.path.splitext(filename)[0]}.xlsx"))
+            self.history_table.setItem(row, 3, QTableWidgetItem(status))
+        self.history_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
 
     def on_tab_changed(self, idx):
         tabs = self.centralWidget().findChild(QTabWidget)
