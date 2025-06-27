@@ -64,4 +64,31 @@ Thumbs.db
 
 # Ignore PyInstaller output
 *.manifest
-*.spec 
+*.spec
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# SQLite DB
+*.db
+*.sqlite
+
+# Output
+your_output_folder/
+/output/
+
+# Config
+config.ini
+
+# Mac/Windows/IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log
+
+# Security
+# (Do NOT commit any files with passwords or secrets) 
