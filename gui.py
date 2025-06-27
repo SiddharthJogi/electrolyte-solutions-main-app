@@ -12,6 +12,7 @@ from watchdog.events import FileSystemEventHandler
 import time
 import threading
 from datetime import datetime
+import pandas as pd
 
 CONFIG_PATH = "config.ini"
 LOGO_PATH = "assets/electrolye logo.png"
@@ -1024,53 +1025,23 @@ class FileProcessorThread(QThread):
     def process_atomberg_fallback(self):
         """Fallback processing for Atomberg files when Windows dependencies are not available"""
         try:
-            import pandas as pd
-            from openpyxl import Workbook
-            from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
-            
             # Read CSV
-            df = pd.read_csv(self.file_path)
-            
+            try:
+                df = pd.read_csv(self.file_path, encoding='utf-8', low_memory=False, on_bad_lines='warn')
+            except UnicodeDecodeError:
+                print("UTF-8 encoding failed, trying Latin-1...")
+                try:
+                    df = pd.read_csv(self.file_path, encoding='latin-1', low_memory=False, on_bad_lines='warn')
+                except UnicodeDecodeError:
+                    print("Latin-1 encoding failed, trying Windows-1252...")
+                    df = pd.read_csv(self.file_path, encoding='windows-1252', low_memory=False, on_bad_lines='warn')
             # Create output directory
             os.makedirs('output', exist_ok=True)
-            
             # Generate output filename
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             output_filename = f"output/Atomberg_Output_{timestamp}.xlsx"
-            
-            # Create Excel workbook with styling
-            wb = Workbook()
-            ws = wb.active
-            ws.title = "Processed Data"
-            
-            # Add headers
-            for col, header in enumerate(df.columns, 1):
-                cell = ws.cell(row=1, column=col, value=header)
-                cell.font = Font(bold=True)
-                cell.fill = PatternFill(start_color="FFD93D", end_color="FFD93D", fill_type="solid")
-                cell.alignment = Alignment(horizontal="center")
-            
-            # Add data
-            for row_idx, row in enumerate(df.values, 2):
-                for col_idx, value in enumerate(row, 1):
-                    ws.cell(row=row_idx, column=col_idx, value=value)
-            
-            # Auto-adjust column widths
-            for column in ws.columns:
-                max_length = 0
-                column_letter = column[0].column_letter
-                for cell in column:
-                    try:
-                        if len(str(cell.value)) > max_length:
-                            max_length = len(str(cell.value))
-                    except:
-                        pass
-                adjusted_width = min(max_length + 2, 50)
-                ws.column_dimensions[column_letter].width = adjusted_width
-            
-            # Save the workbook
-            wb.save(output_filename)
-            
+            # Save as Excel
+            df.to_excel(output_filename, index=False)
             return True
         except Exception as e:
             print(f"Error in Atomberg fallback processing: {e}")
