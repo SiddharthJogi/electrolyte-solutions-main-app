@@ -997,7 +997,7 @@ class FileProcessorThread(QThread):
             
             # Try to import the main module, handle Windows-specific dependencies
             try:
-                from main import process_file_simple
+                from atomberg.main import process_file_simple
             except ImportError as e:
                 if "win32com" in str(e):
                     # Fallback for non-Windows systems
