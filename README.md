@@ -1,86 +1,37 @@
-# Electrolyte Report Converter
+# Electrolyte CRM - Multi-Company Dashboard
 
-A modern desktop application for converting CRM CSV reports from electrolyte manufacturing into formatted Excel (XLSX) outputs.
+A modern, cross-platform desktop tool for managing technician performance, file-based reporting, and daily operations for multiple companies (Usha, Symphony, Orient, Atomberg).
 
 ## Features
+- Clean, intuitive UI with company selector and dashboards
+- Role-based authentication (main_admin, admin, user)
+- Company-specific dashboards: Daily Task, Performance Dashboard, Feedback Call, Salary Counter, File Processing
+- File processing integration (including Atomberg logic)
+- Shared SQLite database for all app data
+- Responsive, accessible design
 
-- Modern, user-friendly interface with dark/light theme
-- Drag-and-drop support for CSV files
-- Batch processing capability
-- Progress tracking
-- Conversion history logging
-- Professional Excel output formatting
-
-## Installation
-
-1. Ensure you have Python 3.9+ installed
-2. Install the required packages:
+## Setup
+1. Clone the repository:
+   ```bash
+   git clone <your-repo-url>
+   cd electrolyte-solutions-main-app-main
+   ```
+2. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
-
-## Usage
-
-1. Run the application:
+3. Run the app:
    ```bash
    python app.py
    ```
 
-2. Use the application:
-   - Drag and drop CSV files onto the application window, or use the "Browse CSV Files" button
-   - Click "Convert to XLSX (Batch)" to process the files
-   - Select an output directory for the converted files
-   - Monitor conversion progress in the status bar
-   - View conversion history in the "History" tab
+## Usage
+- Log in with your assigned username and password.
+- Select your company and access the relevant dashboard sections.
+- Only admins/main_admins can access all features; users have limited access.
 
-## Data Format
-
-The application expects CRM CSV files with columns such as:
-- Case Number
-- SLA
-- Customer Name
-- Customer Phone
-- Street, City, State/Province, Zip/Postal Code
-- Customer Complaint
-- Product Description
-- LineItem Status (e.g., New, Completed, etc.)
-- Technician Name
-- Technician Remarks
-- Created Date
-
-The output Excel file will be formatted with:
-- Proper column headers
-- Center alignment
-- Text wrapping
-- Auto-adjusted column widths
-- Professional styling
-
-## What NOT to Upload to GitHub
-
-**Do NOT upload these files/folders:**
-- `__pycache__/`, `*.pyc` files
-- `build/`, `dist/`, and all their contents
-- `conversion_logs.db` or any `.db`/`.sqlite` files
-- Any `.csv`, `.xlsx`, or `.zip` files in the `electrolyte/` folder (these are data/output, not code)
-- All binaries in `electrolyte/Feed_Electrolyte-*/Feed_Electrolyte/Debug/` (e.g., `.exe`, `.dll`, `.pdb`, `.xml`, `.config`)
-- Large files like `context.txt`, `context.exe`, or any build artifacts
-
-**Recommended:** Add a `.gitignore` file to enforce this.
-
-## What to Upload
-- All `.py` source code files
-- `requirements.txt`
-- `README.md`
-- `Electrolyte_Report_Converter_Requirements.md`
-- The `assets/` folder (for your logo and static images)
-
-## Contributing
-
-Pull requests are welcome! Please:
-- Exclude all data, binaries, and build artifacts from your commits
-- Follow PEP8 style for Python code
-- Update the README if you add new features
+## Security
+**Do not commit real user credentials or passwords to public repositories.**
 
 ## License
-
 MIT License 
