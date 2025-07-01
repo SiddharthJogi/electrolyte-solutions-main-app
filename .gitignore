@@ -64,7 +64,7 @@ Thumbs.db
 
 # Ignore PyInstaller output
 *.manifest
-*.spec
+*.spec 
 
 # Python
 __pycache__/

@@ -361,7 +361,7 @@ def log_file_processing(company, filename, file_type, status, output_path=None, 
                    (company, filename, file_type, status, output_path, error_message, processed_by))
     
     conn.commit()
-    conn.close()
+    conn.close() 
 
 def get_file_logs(company):
     """Get file processing logs for a company"""

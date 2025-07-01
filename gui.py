@@ -909,16 +909,33 @@ class FileProcessingDialog(QDialog):
     def on_processing_finished(self, success, message):
         self.progress_bar.setVisible(False)
         self.process_button.setEnabled(True)
-        
+
+        # Check for fallback/exe usage in logs (simple approach: check for a marker file or log)
+        fallback_marker = 'output/atomberg_fallback_used.txt'
+        exe_marker = 'output/atomberg_exe_used.txt'
+        feedback_msg = None
+        if os.path.exists(fallback_marker):
+            feedback_msg = "Note: Atomberg fallback processing was used. Some advanced features may not be available."
+            os.remove(fallback_marker)
+        elif os.path.exists(exe_marker):
+            feedback_msg = "Note: Atomberg main.exe was used for processing."
+            os.remove(exe_marker)
+
         if success:
             self.status_label.setText("File processed successfully!")
             self.status_label.setStyleSheet("color: #27ae60; font-weight: bold;")
-            QMessageBox.information(self, "Success", "File processed successfully!")
+            msg = "File processed successfully!"
+            if feedback_msg:
+                msg += f"\n\n{feedback_msg}"
+            QMessageBox.information(self, "Success", msg)
         else:
             self.status_label.setText("Processing failed")
             self.status_label.setStyleSheet("color: #e74c3c; font-weight: bold;")
-            QMessageBox.warning(self, "Error", f"Processing failed: {message}")
-            
+            msg = f"Processing failed: {message}"
+            if feedback_msg:
+                msg += f"\n\n{feedback_msg}"
+            QMessageBox.warning(self, "Error", msg)
+
         self.load_history()
         
     def load_history(self):
@@ -991,35 +1008,74 @@ class FileProcessorThread(QThread):
             self.finished.emit(False, str(e))
             
     def process_atomberg_file(self):
+        import platform
+        import traceback
         try:
-            # Use the Atomberg processing logic
+            print(f"[DEBUG] Starting Atomberg file processing for: {self.file_path}")
             import sys
             sys.path.append('atomberg')
-            
-            # Try to import the main module, handle Windows-specific dependencies
             try:
                 from main import process_file_simple
+                print("[DEBUG] Imported process_file_simple from atomberg/main.py successfully.")
+                # Create output directory if it doesn't exist
+                os.makedirs('output', exist_ok=True)
+                # Generate output filename
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                output_filename = f"output/Atomberg_Output_{timestamp}.xlsx"
+                # Process the file
+                process_file_simple(self.file_path, output_filename)
+                print(f"[DEBUG] Atomberg processing complete. Output: {output_filename}")
+                return True
             except ImportError as e:
+                print(f"[ERROR] ImportError: {e}")
                 if "win32com" in str(e):
-                    # Fallback for non-Windows systems
-                    print("Windows-specific dependencies not available, using fallback processing")
+                    print("[INFO] win32com not available, using fallback processing.")
+                    # Write marker for fallback
+                    with open('output/atomberg_fallback_used.txt', 'w') as f:
+                        f.write('Fallback used')
                     return self.process_atomberg_fallback()
                 else:
-                    raise e
-            
-            # Create output directory if it doesn't exist
-            os.makedirs('output', exist_ok=True)
-            
-            # Generate output filename
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            output_filename = f"output/Atomberg_Output_{timestamp}.xlsx"
-            
-            # Process the file
-            process_file_simple(self.file_path, output_filename)
-            
-            return True
+                    # On Windows, try to use main.exe as a fallback
+                    if platform.system() == "Windows":
+                        print("[INFO] Attempting to use main.exe as fallback on Windows.")
+                        try:
+                            import subprocess
+                            exe_path = os.path.join('atomberg', 'main.exe')
+                            if not os.path.exists(exe_path):
+                                print(f"[ERROR] main.exe not found at {exe_path}")
+                                return False
+                            # Generate output filename
+                            os.makedirs('output', exist_ok=True)
+                            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                            output_filename = os.path.abspath(f"output/Atomberg_Output_{timestamp}.xlsx")
+                            # Call the exe with input and output arguments
+                            result = subprocess.run([exe_path, self.file_path, output_filename], capture_output=True, text=True)
+                            print(f"[DEBUG] main.exe stdout: {result.stdout}")
+                            print(f"[DEBUG] main.exe stderr: {result.stderr}")
+                            if result.returncode == 0 and os.path.exists(output_filename):
+                                print(f"[DEBUG] main.exe processing complete. Output: {output_filename}")
+                                # Write marker for exe usage
+                                with open('output/atomberg_exe_used.txt', 'w') as f:
+                                    f.write('EXE used')
+                                return True
+                            else:
+                                print(f"[ERROR] main.exe failed with return code {result.returncode}")
+                                return False
+                        except Exception as exe_err:
+                            print(f"[ERROR] Exception running main.exe: {exe_err}")
+                            print(traceback.format_exc())
+                            return False
+                    else:
+                        print("[ERROR] ImportError not related to win32com and not on Windows. Fallback not available.")
+                        print(traceback.format_exc())
+                        return False
+            except Exception as e:
+                print(f"[ERROR] Exception in Atomberg import/process: {e}")
+                print(traceback.format_exc())
+                return False
         except Exception as e:
-            print(f"Error processing Atomberg file: {e}")
+            print(f"[ERROR] Error processing Atomberg file: {e}")
+            print(traceback.format_exc())
             return False
     
     def process_atomberg_fallback(self):
