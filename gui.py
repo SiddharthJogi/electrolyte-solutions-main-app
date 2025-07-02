@@ -403,26 +403,33 @@ class CompanyDashboard(QWidget):
         dashboard_layout.setContentsMargins(0, 0, 0, 0)
         # 3x2 grid, File Processing first
         sections = []
-        sections.append(self.create_dashboard_card("File Processing", "Process CSV files and generate reports", "file_processing"))
-        sections.append(self.create_dashboard_card("Daily Task", "Manage and track daily tasks", "daily_task"))
-        if self.user_data['role'] in ['main_admin', 'admin']:
-            sections.append(self.create_dashboard_card("Performance Dashboard", "View technician performance metrics", "performance"))
-            sections.append(self.create_dashboard_card("Feedback Call", "Manage customer feedback calls", "feedback"))
-            sections.append(self.create_dashboard_card("Salary Counter", "Calculate and manage salaries", "salary"))
-        cols = 3
-        for idx, card in enumerate(sections):
-            card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-            row = idx // cols
-            col = idx % cols
-            dashboard_layout.addWidget(card, row, col)
-        for r in range((len(sections) + cols - 1) // cols):
-            dashboard_layout.setRowStretch(r, 1)
-        for c in range(cols):
-            dashboard_layout.setColumnStretch(c, 1)
-        grid_container.setLayout(dashboard_layout)
-        scroll.setWidget(grid_container)
-        center_layout.addWidget(scroll, stretch=1)
-        # Back button at bottom center
+        if self.company_name == 'Symphony' or self.company_name == 'Usha':
+            coming_soon_label = QLabel("Dashboard for this company is coming soon.")
+            coming_soon_label.setFont(QFont("Arial", 18, QFont.Weight.Bold))
+            coming_soon_label.setStyleSheet("color: #888; margin: 40px;")
+            coming_soon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            center_layout.addWidget(coming_soon_label)
+        else:
+            sections.append(self.create_dashboard_card("File Processing", "Process files and generate reports", "file_processing"))
+            if self.user_data['role'] in ['main_admin', 'admin']:
+                sections.append(self.create_dashboard_card("Daily Task", "Manage and track daily tasks", "daily_task"))
+                if self.company_name == 'Atomberg':
+                    sections.append(self.create_dashboard_card("Performance Dashboard", "View technician performance metrics", "performance"))
+                    sections.append(self.create_dashboard_card("Feedback Call", "Manage customer feedback calls", "feedback"))
+                    sections.append(self.create_dashboard_card("Salary Counter", "Calculate and manage salaries", "salary"))
+            cols = 3
+            for idx, card in enumerate(sections):
+                card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+                row = idx // cols
+                col = idx % cols
+                dashboard_layout.addWidget(card, row, col)
+            for r in range((len(sections) + cols - 1) // cols):
+                dashboard_layout.setRowStretch(r, 1)
+            for c in range(cols):
+                dashboard_layout.setColumnStretch(c, 1)
+            grid_container.setLayout(dashboard_layout)
+            scroll.setWidget(grid_container)
+            center_layout.addWidget(scroll, stretch=1)
         back_button = QPushButton('← Back to Company Selector')
         back_button.setStyleSheet('''
             QPushButton {
@@ -728,27 +735,42 @@ class FileProcessingDialog(QDialog):
         self.user_data = user_data
         self.colors = COMPANY_COLORS.get(company_name, COMPANY_COLORS['Usha'])
         self.init_ui()
-        
+        self.processing_type = 'General'
+        if self.company_name == 'Atomberg':
+            self.processing_type = 'General'
+        # For Orient, no processing type needed
+
     def init_ui(self):
         self.setWindowTitle(f"{self.company_name} - File Processing")
-        self.setFixedSize(600, 500)
+        self.setFixedSize(600, 550)
         self.setStyleSheet(f"""
             QDialog {{
                 background: {self.colors['background']};
                 border-radius: 15px;
             }}
         """)
-        
         layout = QVBoxLayout(self)
         layout.setSpacing(20)
         layout.setContentsMargins(30, 30, 30, 30)
-        
-        # Title
         title_label = QLabel("📁 File Processing")
         title_label.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
         title_label.setStyleSheet(f"color: {self.colors['primary']};")
         layout.addWidget(title_label)
-        
+        # Atomberg: Add processing type selector
+        if self.company_name == 'Atomberg':
+            from PyQt6.QtWidgets import QComboBox
+            self.type_selector = QComboBox()
+            self.type_selector.addItems(["General File Conversion", "Feed Remark", "VOC-VOT Remark"])
+            self.type_selector.setCurrentIndex(0)
+            self.type_selector.setStyleSheet(f"color: {self.colors['primary']}; font-weight: bold; font-size: 15px;")
+            self.type_selector.currentIndexChanged.connect(self.on_type_changed)
+            layout.addWidget(QLabel("Select Processing Type:"))
+            layout.addWidget(self.type_selector)
+        elif self.company_name == 'Orient':
+            info_label = QLabel("This tool processes ZIP files containing a CSV and generates a formatted Excel report. Optionally, you can add VLOOKUPs for REMARKS and SO_NUMBER.")
+            info_label.setWordWrap(True)
+            info_label.setStyleSheet("color: #444; font-size: 14px;")
+            layout.addWidget(info_label)
         # File selection
         file_group = QGroupBox("Select File to Process")
         file_group.setStyleSheet(f"""
@@ -767,8 +789,6 @@ class FileProcessingDialog(QDialog):
             }}
         """)
         file_layout = QVBoxLayout(file_group)
-        
-        # File path display
         self.file_path_label = QLabel("No file selected")
         self.file_path_label.setStyleSheet("""
             QLabel {
@@ -780,8 +800,6 @@ class FileProcessingDialog(QDialog):
             }
         """)
         file_layout.addWidget(self.file_path_label)
-        
-        # Browse button
         browse_button = QPushButton("Browse File")
         browse_button.setStyleSheet(f"""
             QPushButton {{
@@ -798,10 +816,7 @@ class FileProcessingDialog(QDialog):
         """)
         browse_button.clicked.connect(self.browse_file)
         file_layout.addWidget(browse_button)
-        
         layout.addWidget(file_group)
-        
-        # Process button
         self.process_button = QPushButton("Process File")
         self.process_button.setStyleSheet(f"""
             QPushButton {{
@@ -823,8 +838,6 @@ class FileProcessingDialog(QDialog):
         self.process_button.clicked.connect(self.process_file)
         self.process_button.setEnabled(False)
         layout.addWidget(self.process_button)
-        
-        # Progress bar
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
         self.progress_bar.setStyleSheet(f"""
@@ -839,13 +852,9 @@ class FileProcessingDialog(QDialog):
             }}
         """)
         layout.addWidget(self.progress_bar)
-        
-        # Status
         self.status_label = QLabel("Ready to process files")
         self.status_label.setStyleSheet("color: #27ae60; font-weight: bold;")
         layout.addWidget(self.status_label)
-        
-        # Processing history
         history_group = QGroupBox("Processing History")
         history_group.setStyleSheet(f"""
             QGroupBox {{
@@ -863,7 +872,6 @@ class FileProcessingDialog(QDialog):
             }}
         """)
         history_layout = QVBoxLayout(history_group)
-        
         self.history_list = QListWidget()
         self.history_list.setStyleSheet("""
             QListWidget {
@@ -873,10 +881,7 @@ class FileProcessingDialog(QDialog):
             }
         """)
         history_layout.addWidget(self.history_list)
-        
         layout.addWidget(history_group)
-        
-        # Load history
         self.load_history()
         
     def browse_file(self):
@@ -889,19 +894,25 @@ class FileProcessingDialog(QDialog):
             self.selected_file_path = file_path
             self.process_button.setEnabled(True)
             
+    def on_type_changed(self, idx):
+        if idx == 0:
+            self.processing_type = 'General'
+        elif idx == 1:
+            self.processing_type = 'Feed_Remark'
+        elif idx == 2:
+            self.processing_type = 'VOC-VOT_Remark'
+    
     def process_file(self):
         if not hasattr(self, 'selected_file_path'):
             return
-            
         self.process_button.setEnabled(False)
         self.progress_bar.setVisible(True)
-        self.progress_bar.setRange(0, 0)  # Indeterminate progress
+        self.progress_bar.setRange(0, 0)
         self.status_label.setText("Processing file...")
         self.status_label.setStyleSheet("color: #f39c12; font-weight: bold;")
-        
-        # Start processing in a separate thread
+        processing_type = getattr(self, 'processing_type', 'General')
         self.processor_thread = FileProcessorThread(
-            self.selected_file_path, self.company_name, self.user_data['username']
+            self.selected_file_path, self.company_name, self.user_data['username'], processing_type=processing_type
         )
         self.processor_thread.finished.connect(self.on_processing_finished)
         self.processor_thread.start()
@@ -951,30 +962,28 @@ class FileProcessingDialog(QDialog):
 class FileProcessorThread(QThread):
     finished = pyqtSignal(bool, str)
     
-    def __init__(self, file_path, company_name, processed_by):
+    def __init__(self, file_path, company_name, processed_by, processing_type='General'):
         super().__init__()
         self.file_path = file_path
         self.company_name = company_name
         self.processed_by = processed_by
+        self.processing_type = processing_type
         
     def run(self):
         try:
-            # Log processing start
             log_file_processing(
-                self.company_name, 
-                os.path.basename(self.file_path), 
-                "csv", 
-                "processing", 
+                self.company_name,
+                os.path.basename(self.file_path),
+                "csv",
+                "processing",
                 processed_by=self.processed_by
             )
-            
-            # Process based on company
             if self.company_name == "Atomberg":
                 success = self.process_atomberg_file()
+            elif self.company_name == "Orient":
+                success = self.process_orient_file()
             else:
-                # Default processing for other companies
                 success = self.process_default_file()
-                
             if success:
                 log_file_processing(
                     self.company_name,
@@ -995,7 +1004,6 @@ class FileProcessorThread(QThread):
                     processed_by=self.processed_by
                 )
                 self.finished.emit(False, "Processing failed")
-                
         except Exception as e:
             log_file_processing(
                 self.company_name,
@@ -1010,99 +1018,77 @@ class FileProcessorThread(QThread):
     def process_atomberg_file(self):
         import platform
         import traceback
+        import sys
+        import subprocess
+        import importlib.util
         try:
-            print(f"[DEBUG] Starting Atomberg file processing for: {self.file_path}")
-            import sys
+            print(f"[DEBUG] Atomberg processing type: {self.processing_type}")
             sys.path.append('atomberg')
-            try:
-                from main import process_file_simple
-                print("[DEBUG] Imported process_file_simple from atomberg/main.py successfully.")
-                # Create output directory if it doesn't exist
-                os.makedirs('output', exist_ok=True)
-                # Generate output filename
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                output_filename = f"output/Atomberg_Output_{timestamp}.xlsx"
-                # Process the file
-                process_file_simple(self.file_path, output_filename)
-                print(f"[DEBUG] Atomberg processing complete. Output: {output_filename}")
-                return True
-            except ImportError as e:
-                print(f"[ERROR] ImportError: {e}")
-                if "win32com" in str(e):
-                    print("[INFO] win32com not available, using fallback processing.")
-                    # Write marker for fallback
-                    with open('output/atomberg_fallback_used.txt', 'w') as f:
-                        f.write('Fallback used')
-                    return self.process_atomberg_fallback()
-                else:
-                    # On Windows, try to use main.exe as a fallback
-                    if platform.system() == "Windows":
-                        print("[INFO] Attempting to use main.exe as fallback on Windows.")
-                        try:
-                            import subprocess
-                            exe_path = os.path.join('atomberg', 'main.exe')
-                            if not os.path.exists(exe_path):
-                                print(f"[ERROR] main.exe not found at {exe_path}")
-                                return False
-                            # Generate output filename
-                            os.makedirs('output', exist_ok=True)
-                            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                            output_filename = os.path.abspath(f"output/Atomberg_Output_{timestamp}.xlsx")
-                            # Call the exe with input and output arguments
-                            result = subprocess.run([exe_path, self.file_path, output_filename], capture_output=True, text=True)
-                            print(f"[DEBUG] main.exe stdout: {result.stdout}")
-                            print(f"[DEBUG] main.exe stderr: {result.stderr}")
-                            if result.returncode == 0 and os.path.exists(output_filename):
-                                print(f"[DEBUG] main.exe processing complete. Output: {output_filename}")
-                                # Write marker for exe usage
-                                with open('output/atomberg_exe_used.txt', 'w') as f:
-                                    f.write('EXE used')
-                                return True
-                            else:
-                                print(f"[ERROR] main.exe failed with return code {result.returncode}")
-                                return False
-                        except Exception as exe_err:
-                            print(f"[ERROR] Exception running main.exe: {exe_err}")
-                            print(traceback.format_exc())
-                            return False
-                    else:
-                        print("[ERROR] ImportError not related to win32com and not on Windows. Fallback not available.")
-                        print(traceback.format_exc())
-                        return False
-            except Exception as e:
-                print(f"[ERROR] Exception in Atomberg import/process: {e}")
-                print(traceback.format_exc())
-                return False
+            script_map = {
+                'General': ('file conversion logic', 'main', 'process_file_simple'),
+                'Feed_Remark': ('Feed_Remark', 'main', 'process_file'),
+                'VOC-VOT_Remark': ('VOC-VOT_Remark', 'main', 'process_file'),
+            }
+            folder, module_name, func_name = script_map.get(self.processing_type, script_map['General'])
+            module_path = os.path.join('atomberg', folder, f'{module_name}.py')
+            spec = importlib.util.spec_from_file_location(module_name, module_path)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            func = getattr(module, func_name)
+            os.makedirs('output', exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            output_filename = f"output/Atomberg_{self.processing_type}_Output_{timestamp}.xlsx"
+            # For Feed_Remark and VOC-VOT_Remark, use their process_file signature
+            if self.processing_type == 'General':
+                func(self.file_path, output_filename)
+            else:
+                func(self.file_path, output_filename)
+            print(f"[DEBUG] Atomberg {self.processing_type} processing complete. Output: {output_filename}")
+            return True
         except Exception as e:
-            print(f"[ERROR] Error processing Atomberg file: {e}")
+            print(f"[ERROR] Exception in Atomberg {self.processing_type} import/process: {e}")
             print(traceback.format_exc())
             return False
     
-    def process_atomberg_fallback(self):
-        """Fallback processing for Atomberg files when Windows dependencies are not available"""
+    def process_orient_file(self):
+        import platform
+        import traceback
+        import sys
+        import subprocess
+        import importlib.util
         try:
-            # Read CSV
+            print(f"[DEBUG] Starting Orient file processing for: {self.file_path}")
+            sys.path.append('orient')
+            module_path = os.path.join('orient', 'orient.py')
             try:
-                df = pd.read_csv(self.file_path, encoding='utf-8', low_memory=False, on_bad_lines='warn')
-            except UnicodeDecodeError:
-                print("UTF-8 encoding failed, trying Latin-1...")
-                try:
-                    df = pd.read_csv(self.file_path, encoding='latin-1', low_memory=False, on_bad_lines='warn')
-                except UnicodeDecodeError:
-                    print("Latin-1 encoding failed, trying Windows-1252...")
-                    df = pd.read_csv(self.file_path, encoding='windows-1252', low_memory=False, on_bad_lines='warn')
-            # Create output directory
-            os.makedirs('output', exist_ok=True)
-            # Generate output filename
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            output_filename = f"output/Atomberg_Output_{timestamp}.xlsx"
-            # Save as Excel
-            df.to_excel(output_filename, index=False)
-            return True
+                spec = importlib.util.spec_from_file_location('orient', module_path)
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                func = getattr(module, 'main')
+                # Simulate command-line input for orient.py (it uses tkinter dialogs for file selection)
+                # Instead, just run the script as a subprocess for now
+                # If on Windows and .exe exists, use orient.exe as fallback
+                if platform.system() == "Windows" and os.path.exists(os.path.join('orient', 'orient.exe')):
+                    exe_path = os.path.join('orient', 'orient.exe')
+                    result = subprocess.run([exe_path], capture_output=True, text=True)
+                    print(f"[DEBUG] orient.exe stdout: {result.stdout}")
+                    print(f"[DEBUG] orient.exe stderr: {result.stderr}")
+                    return result.returncode == 0
+                else:
+                    # Run the script as a subprocess (so tkinter dialogs work)
+                    result = subprocess.run([sys.executable, module_path], capture_output=True, text=True)
+                    print(f"[DEBUG] orient.py stdout: {result.stdout}")
+                    print(f"[DEBUG] orient.py stderr: {result.stderr}")
+                    return result.returncode == 0
+            except Exception as e:
+                print(f"[ERROR] Exception in Orient import/process: {e}")
+                print(traceback.format_exc())
+                return False
         except Exception as e:
-            print(f"Error in Atomberg fallback processing: {e}")
+            print(f"[ERROR] Error processing Orient file: {e}")
+            print(traceback.format_exc())
             return False
-            
+    
     def process_default_file(self):
         try:
             # Default processing logic (placeholder)

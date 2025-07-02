@@ -91,4 +91,11 @@ Thumbs.db
 *.log
 
 # Security
-# (Do NOT commit any files with passwords or secrets) 
+# (Do NOT commit any files with passwords or secrets)
+
+# New additions from the code block
+.venv/
+*.log
+*.exe
+.DS_Store
+.idea/ 

@@ -1,6 +1,15 @@
-PyQt6>=6.9.1
-pandas>=2.3.0
-openpyxl>=3.1.5
-pyinstaller>=6.14.1
-watchdog>=3.0.0
-pywin32; sys_platform == 'win32'  # For Windows COM automation 
+# Core requirements for Electrolyte CRM Dashboard
+PyQt6>=6.0.0
+pandas>=1.3.0
+openpyxl>=3.0.0
+watchdog>=2.1.0
+
+# For Windows VLOOKUP automation (only needed on Windows)
+pywin32; platform_system == "Windows"
+
+# For legacy scripts (tkinter is included with Python standard library)
+# No need to list tkinter separately
+
+# If you use Excel COM automation, you must have Microsoft Excel installed (Windows only)
+
+# .exe fallback is available for Atomberg (General) and Orient on Windows (no Python needed for those modes) 
