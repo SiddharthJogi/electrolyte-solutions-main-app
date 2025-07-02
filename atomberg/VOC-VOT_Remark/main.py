@@ -278,10 +278,13 @@ def process_file(input_path, output_path):
 
     except Exception as e:
         print(f"Error: {str(e)}")
-        root = tk.Tk()
-        root.withdraw()
-        messagebox.showerror("Error", f"An error occurred:\n{str(e)}")
-        root.destroy()
+        try:
+            root = tk.Tk()
+            root.withdraw()
+            messagebox.showerror("Error", f"An error occurred:\n{str(e)}")
+            root.destroy()
+        except Exception as tkerr:
+            print(f"[WARNING] Could not show Tkinter error dialog: {tkerr}")
 
 if __name__ == "__main__":
     print("Starting CSV to Excel conversion...")
