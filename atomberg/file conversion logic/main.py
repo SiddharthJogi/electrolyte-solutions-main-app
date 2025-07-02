@@ -410,7 +410,6 @@ def process_file_simple(input_path, output_path):
     """Processes the CSV file and generates a styled Excel output (no VLOOKUP)."""
     try:
         print("Starting simple CSV to Excel conversion...")
-        
         # Read and validate CSV file
         print("Reading CSV file...")
         try:
@@ -423,11 +422,25 @@ def process_file_simple(input_path, output_path):
                 print("Latin-1 encoding failed, trying Windows-1252...")
                 df = pd.read_csv(input_path, encoding='windows-1252', low_memory=False)
 
-        # Validate required columns
+        # Handle Customer Phone column flexibly
+        phone_col = None
+        possible_phone_cols = ['Customer Phone', 'Phone', 'Mobile', 'Contact Number', 'Phone Number']
+        for col in possible_phone_cols:
+            if col in df.columns:
+                phone_col = col
+                break
+        if not phone_col:
+            print("[WARNING] No phone number column found. Adding blank 'Customer Phone' column.")
+            df['Customer Phone'] = ''
+            phone_col = 'Customer Phone'
+        elif phone_col != 'Customer Phone':
+            df['Customer Phone'] = df[phone_col]
+
+        # Validate other required columns
         required_columns = [
-            'Created Date', 'Customer Name', 'Customer Phone', 'Street',
+            'Created Date', 'Customer Name', 'Street',
             'Zip/Postal Code', 'Customer Complaint', 'Product Description',
-            'LineItem Status', 'Technician Name', 'Case Number', 'WO Status'
+            'LineItem Status', 'Technician Name', 'Case Number', 'WO Status', 'Customer Phone'
         ]
         missing_columns = [col for col in required_columns if col not in df.columns]
         if missing_columns:
@@ -442,7 +455,6 @@ def process_file_simple(input_path, output_path):
         # Process dates and calculate SLA
         print("Processing dates and calculating SLA...")
         raw_dates_sample = df['Created Date'].head(5).tolist()
-        
         date_formats = [
             "%d-%m-%Y", "%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y",
             "%d-%b-%Y", "%Y/%m/%d", "%d.%m.%Y", "%b %d %Y"
@@ -455,18 +467,14 @@ def process_file_simple(input_path, output_path):
                     break
             except ValueError:
                 continue
-
         if parsed_dates is None or parsed_dates.isna().all():
             raise ValueError(f"Failed to parse 'Created Date' column. Sample values: {raw_dates_sample}")
-
         df['Created Date'] = parsed_dates
         today = datetime.today()
         df['SLA'] = (today - df['Created Date']).dt.days.fillna(-1).astype(int)
-
         # Sort by SLA in descending order (largest to smallest) before creating Excel
         print("Sorting data by SLA (largest to smallest)...")
         df = df.sort_values('SLA', ascending=False)
-
         # Select columns for Sheet1
         sheet1_columns = [
             'Case Number', 'SLA', 'Customer Name', 'Customer Phone', 'Street',
@@ -475,13 +483,10 @@ def process_file_simple(input_path, output_path):
         ]
         df_sheet1 = df[sheet1_columns].copy()
         df_sheet1['Remarks'] = ''  # Add empty Remarks column
-
         # Create Excel file with styling
         print("Creating styled Excel file...")
         success = create_styled_excel(df_sheet1, df, output_path)
-        
         return success
-        
     except Exception as e:
         print(f"Error in simple processing: {str(e)}")
         raise

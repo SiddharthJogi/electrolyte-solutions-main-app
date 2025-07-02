@@ -52,18 +52,6 @@ def get_vlookup_choice(converted_file_path):
     root.destroy()
     return lookup_file, save_option
 
-def find_column_indices(ws):
-    """Find column indices of required remark columns in the lookup sheet by header name"""
-    col_map = {}
-    max_col = ws.UsedRange.Columns.Count
-    for col in range(1, max_col + 1):
-        header_value = ws.Cells(1, col).Value
-        if header_value:
-            header_value = str(header_value).strip()
-            if header_value in ['Calling Remarks', 'VOC Remarks', 'VOT Remarks']:
-                col_map[header_value] = col
-    return col_map
-
 def apply_vlookup_with_excel_com(workbook_path, lookup_file_path):
     print("Applying VLOOKUP formulas...")
     excel = None
@@ -72,7 +60,6 @@ def apply_vlookup_with_excel_com(workbook_path, lookup_file_path):
         excel.Visible = False
         excel.DisplayAlerts = False
 
-        # Open both files
         main_wb = excel.Workbooks.Open(os.path.abspath(workbook_path))
         lookup_wb = excel.Workbooks.Open(os.path.abspath(lookup_file_path))
 
@@ -84,18 +71,16 @@ def apply_vlookup_with_excel_com(workbook_path, lookup_file_path):
         lookup_last_col = lookup_ws.UsedRange.Columns.Count
         main_last_row = main_ws.UsedRange.Rows.Count
 
-        # Map headers to column indices
         header_map = {}
         for col in range(1, lookup_last_col + 1):
             val = lookup_ws.Cells(1, col).Value
             if val:
                 header_map[str(val).strip()] = col
 
-        # Define which fields to vlookup, and where to put them in main_ws
         field_map = {
-            'Calling Remarks': 13,  # Adjusted for SLA removal
-            'VOC Remarks': 14,
-            'VOT Remarks': 15
+            'Calling Remarks': 14,
+            'VOC Remarks': 15,
+            'VOT Remarks': 16
         }
 
         for field_name, main_col in field_map.items():
@@ -105,8 +90,6 @@ def apply_vlookup_with_excel_com(workbook_path, lookup_file_path):
                 continue
 
             lookup_col_index = header_map[field_name]
-
-            # Build Excel VLOOKUP range string
             col_letter = chr(64 + lookup_last_col)
             lookup_range = f"'[{lookup_filename}]Sheet1'!$A$1:${col_letter}${lookup_last_row}"
 
@@ -114,7 +97,6 @@ def apply_vlookup_with_excel_com(workbook_path, lookup_file_path):
                 formula = f'=IFERROR(VLOOKUP(A{row},{lookup_range},{lookup_col_index},FALSE),"")'
                 main_ws.Cells(row, main_col).Formula = formula
 
-        # Save and close
         main_wb.Save()
         lookup_wb.Close(False)
         main_wb.Close(True)
@@ -138,42 +120,36 @@ def process_file(input_path, output_path):
 
         required_columns = [
             'Case Number', 'Created Date', 'Customer Name',
-            'Street', 'Zip/Postal Code', 'Customer Complaint', 'Case Status',
-            'Closing Date', 'Closing Month', 'Product Description',
-            'Warranty Status', 'Technician Name'
+            'Street', 'Zip/Postal Code', 'Customer Complaint', 'LineItem Status',
+            'End Date', 'Product Description', 'Warranty Status', 'Technician Name'
         ]
         missing_columns = [col for col in required_columns if col not in df.columns]
         if missing_columns:
             raise ValueError(f"Missing required columns: {', '.join(missing_columns)}")
 
-        df = df.dropna(subset=['Case Status', 'Closing Month', 'Closing Date'])
-        df['Closing Date'] = pd.to_datetime(df['Closing Date'], format='%d-%m-%Y', errors='coerce')
-        df = df.dropna(subset=['Closing Date'])
+        df = df.dropna(subset=['LineItem Status', 'End Date'])
 
-        df['Closing Month'] = df['Closing Date'].dt.strftime('%b-%y')
+        df['End Date'] = pd.to_datetime(df['End Date'], format='%d-%m-%Y', errors='coerce')
         df['Created Date'] = pd.to_datetime(df['Created Date'], format='%d-%m-%Y', errors='coerce')
-
-        print("Closing Months before filtering:", df['Closing Month'].unique())
+        df = df.dropna(subset=['End Date'])
 
         df = df[
-            (df['Case Status'] == 'Completed') &
-            (df['Closing Month'].isin(['Apr-25', 'May-25', 'Jun-25'])) &
-            (df['Closing Date'] >= pd.to_datetime('27-04-2025', format='%d-%m-%Y')) &
-            (df['Closing Date'] <= pd.to_datetime('20-06-2025', format='%d-%m-%Y'))
+            (df['LineItem Status'] == 'Completed') &
+            (df['End Date'] >= pd.to_datetime('27-04-2025', format='%d-%m-%Y')) &
+            (df['End Date'] <= pd.to_datetime('20-06-2025', format='%d-%m-%Y'))
         ]
-
-        print("Closing Months after filtering:", df['Closing Month'].unique())
-        print(f"Rows after filtering: {len(df)}")
 
         if df.empty:
             raise ValueError("No rows match the filter conditions (Apr-Jun 2025, between 27-04-2025 and 20-06-2025).")
 
-        # Define sheet1 columns (SLA removed)
+        df['Closing Date'] = ''
+        df['Closing Month'] = ''
+
         sheet1_columns = [
             'Case Number', 'Created Date', 'Customer Name',
-            'Street', 'Zip/Postal Code', 'Customer Complaint', 'Case Status',
-            'Closing Date', 'Closing Month', 'Product Description',
-            'Warranty Status', 'Technician Name'
+            'Street', 'Zip/Postal Code', 'Customer Complaint', 'LineItem Status',
+            'End Date', 'Closing Date', 'Closing Month',
+            'Product Description', 'Warranty Status', 'Technician Name'
         ]
         df_sheet1 = df[sheet1_columns].copy()
         df_sheet1['Calling Remarks'] = ''
@@ -181,7 +157,7 @@ def process_file(input_path, output_path):
         df_sheet1['VOT Remarks'] = ''
 
         df_sheet1['Created Date'] = df_sheet1['Created Date'].dt.strftime('%d-%m-%Y')
-        df_sheet1['Closing Date'] = df_sheet1['Closing Date'].dt.strftime('%d-%m-%Y')
+        df_sheet1['End Date'] = df_sheet1['End Date'].dt.strftime('%d-%m-%Y')
 
         print("Creating Excel file...")
         workbook = Workbook()
@@ -213,6 +189,11 @@ def process_file(input_path, output_path):
         for r in range(1, sheet1.max_row + 1):
             sheet1.row_dimensions[r].height = 40
 
+        # Insert formulas
+        for i in range(2, sheet1.max_row + 1):
+            sheet1[f'J{i}'] = f'=LEFT(H{i}, 10)'
+            sheet1[f'K{i}'] = f'=TEXT(J{i}, "MMM-YY")'
+
         sheet1.auto_filter.ref = sheet1.dimensions
         workbook.create_sheet(title="Sheet2")
         workbook.save(output_path)
@@ -231,8 +212,8 @@ def process_file(input_path, output_path):
         pivot_table = pivot_cache.CreatePivotTable(TableDestination=sheet2.Range("A5"),
                                                    TableName="Customer_Pivot")
 
-        pivot_table.PivotFields("Case Status").Orientation = win32.constants.xlPageField
-        pivot_table.PivotFields("Case Status").CurrentPage = "Completed"
+        pivot_table.PivotFields("LineItem Status").Orientation = win32.constants.xlPageField
+        pivot_table.PivotFields("LineItem Status").CurrentPage = "Completed"
 
         pivot_table.PivotFields("Closing Month").Orientation = win32.constants.xlPageField
         pivot_table.PivotFields("Closing Month").EnableMultiplePageItems = True
@@ -278,13 +259,10 @@ def process_file(input_path, output_path):
 
     except Exception as e:
         print(f"Error: {str(e)}")
-        try:
-            root = tk.Tk()
-            root.withdraw()
-            messagebox.showerror("Error", f"An error occurred:\n{str(e)}")
-            root.destroy()
-        except Exception as tkerr:
-            print(f"[WARNING] Could not show Tkinter error dialog: {tkerr}")
+        root = tk.Tk()
+        root.withdraw()
+        messagebox.showerror("Error", f"An error occurred:\n{str(e)}")
+        root.destroy()
 
 if __name__ == "__main__":
     print("Starting CSV to Excel conversion...")
