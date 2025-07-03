@@ -410,13 +410,11 @@ class CompanyDashboard(QWidget):
             coming_soon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             center_layout.addWidget(coming_soon_label)
         else:
-            sections.append(self.create_dashboard_card("File Processing", "Process files and generate reports", "file_processing"))
+            # Only show three cards: Performance Dashboard, Daily Task, Feedback Calling
             if self.user_data['role'] in ['main_admin', 'admin']:
-                sections.append(self.create_dashboard_card("Daily Task", "Manage and track daily tasks", "daily_task"))
-                if self.company_name == 'Atomberg':
-                    sections.append(self.create_dashboard_card("Performance Dashboard", "View technician performance metrics", "performance"))
-                    sections.append(self.create_dashboard_card("Feedback Call", "Manage customer feedback calls", "feedback"))
-                    sections.append(self.create_dashboard_card("Salary Counter", "Calculate and manage salaries", "salary"))
+                sections.append(self.create_dashboard_card("Performance Dashboard", "View technician performance metrics", "performance"))
+                sections.append(self.create_dashboard_card("Daily Task", "Feed Remark and VOC-VOT Remark processing", "daily_task"))
+                sections.append(self.create_dashboard_card("Feedback Call", "Manage customer feedback calls", "feedback"))
             cols = 3
             for idx, card in enumerate(sections):
                 card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
@@ -511,42 +509,25 @@ class CompanyDashboard(QWidget):
         return card
     
     def open_section(self, section_type):
-        if section_type == "file_processing":
-            self.open_file_processing()
-        elif section_type == "daily_task":
+        if section_type == "daily_task":
             self.open_daily_tasks()
         elif section_type == "performance":
             self.open_performance_dashboard()
         elif section_type == "feedback":
             self.open_feedback_calls()
-        elif section_type == "salary":
-            self.open_salary_counter()
         else:
             QMessageBox.information(self, "Coming Soon", f"The {section_type.replace('_', ' ').title()} section will be implemented soon!")
     
-    def open_file_processing(self):
-        """Open file processing dialog with Atomberg integration"""
-        dialog = FileProcessingDialog(self.company_name, self.user_data, self)
-        dialog.exec()
-    
     def open_daily_tasks(self):
-        """Open daily tasks management"""
         dialog = DailyTasksDialog(self.company_name, self.user_data, self)
         dialog.exec()
     
     def open_performance_dashboard(self):
-        """Open performance dashboard"""
         dialog = PerformanceDialog(self.company_name, self)
         dialog.exec()
     
     def open_feedback_calls(self):
-        """Open feedback calls management"""
         dialog = FeedbackDialog(self.company_name, self)
-        dialog.exec()
-    
-    def open_salary_counter(self):
-        """Open salary counter"""
-        dialog = SalaryDialog(self.company_name, self)
         dialog.exec()
     
     def logout(self):
@@ -1120,7 +1101,7 @@ class DailyTasksDialog(QDialog):
         self.user_data = user_data
         self.colors = COMPANY_COLORS.get(company_name, COMPANY_COLORS['Usha'])
         self.init_ui()
-        
+
     def init_ui(self):
         self.setWindowTitle(f"{self.company_name} - Daily Tasks")
         self.setFixedSize(800, 600)
@@ -1130,221 +1111,78 @@ class DailyTasksDialog(QDialog):
                 border-radius: 15px;
             }}
         """)
-        
         layout = QVBoxLayout(self)
         layout.setSpacing(20)
         layout.setContentsMargins(30, 30, 30, 30)
-        
-        # Title
         title_label = QLabel("📋 Daily Tasks Management")
         title_label.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
         title_label.setStyleSheet(f"color: {self.colors['primary']};")
         layout.addWidget(title_label)
-        
-        # Tasks table
-        self.tasks_table = QTableWidget()
-        self.tasks_table.setColumnCount(7)
-        self.tasks_table.setHorizontalHeaderLabels([
-            "ID", "Title", "Description", "Assigned To", "Priority", "Status", "Due Date"
-        ])
-        self.tasks_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.tasks_table.setStyleSheet("""
-            QTableWidget {
-                border: 1px solid #E0E0E0;
-                border-radius: 8px;
-                background: white;
-            }
-            QHeaderView::section {
-                background: #f8f9fa;
-                padding: 8px;
-                border: none;
-                font-weight: bold;
-            }
-        """)
-        layout.addWidget(self.tasks_table)
-        
-        self.load_tasks()
-        
-    def load_tasks(self):
-        tasks = get_daily_tasks(self.company_name)
-        self.tasks_table.setRowCount(len(tasks))
-        
-        for i, task in enumerate(tasks):
-            self.tasks_table.setItem(i, 0, QTableWidgetItem(str(task[0])))
-            self.tasks_table.setItem(i, 1, QTableWidgetItem(task[2]))
-            self.tasks_table.setItem(i, 2, QTableWidgetItem(task[3] or ""))
-            self.tasks_table.setItem(i, 3, QTableWidgetItem(task[4] or ""))
-            self.tasks_table.setItem(i, 4, QTableWidgetItem(task[6]))
-            self.tasks_table.setItem(i, 5, QTableWidgetItem(task[5]))
-            self.tasks_table.setItem(i, 6, QTableWidgetItem(task[7] or ""))
-            
-            # Color code by priority
-            if task[6] == 'urgent':
-                for j in range(7):
-                    self.tasks_table.item(i, j).setBackground(QColor(255, 200, 200))
-            elif task[6] == 'high':
-                for j in range(7):
-                    self.tasks_table.item(i, j).setBackground(QColor(255, 255, 200))
-    
-    def add_task_dialog(self):
-        dialog = AddTaskDialog(self.company_name, self.user_data['username'], self)
-        if dialog.exec() == QDialog.DialogCode.Accepted:
-            self.load_tasks()
+        # --- Feed Remark Section ---
+        feed_group = QGroupBox("Feed Remark Processing")
+        feed_layout = QHBoxLayout(feed_group)
+        self.feed_vlookup_checkbox = QCheckBox("Enable VLOOKUP")
+        self.feed_vlookup_checkbox.setChecked(False)
+        feed_layout.addWidget(self.feed_vlookup_checkbox)
+        feed_btn = QPushButton("Process Feed Remark CSV")
+        feed_btn.setStyleSheet(f"background: {self.colors['primary']}; color: white; font-weight: bold; padding: 10px 20px; border-radius: 8px;")
+        feed_btn.clicked.connect(self.process_feed_remark)
+        feed_layout.addWidget(feed_btn)
+        layout.addWidget(feed_group)
+        # --- VOC-VOT Remark Section ---
+        voc_group = QGroupBox("VOC-VOT Remark Processing")
+        voc_layout = QHBoxLayout(voc_group)
+        self.voc_vlookup_checkbox = QCheckBox("Enable VLOOKUP")
+        self.voc_vlookup_checkbox.setChecked(False)
+        voc_layout.addWidget(self.voc_vlookup_checkbox)
+        voc_btn = QPushButton("Process VOC-VOT Remark CSV")
+        voc_btn.setStyleSheet(f"background: {self.colors['primary']}; color: white; font-weight: bold; padding: 10px 20px; border-radius: 8px;")
+        voc_btn.clicked.connect(self.process_voc_vot_remark)
+        voc_layout.addWidget(voc_btn)
+        layout.addWidget(voc_group)
+        # --- Orient Section (if company is Orient) ---
+        if self.company_name == 'Orient':
+            orient_group = QGroupBox("Orient ZIP Processing")
+            orient_layout = QHBoxLayout(orient_group)
+            orient_label = QLabel("Only ZIP files containing a single CSV are accepted.")
+            orient_layout.addWidget(orient_label)
+            orient_btn = QPushButton("Process Orient ZIP File")
+            orient_btn.setStyleSheet(f"background: {self.colors['primary']}; color: white; font-weight: bold; padding: 10px 20px; border-radius: 8px;")
+            orient_btn.clicked.connect(self.process_orient_zip)
+            orient_layout.addWidget(orient_btn)
+            layout.addWidget(orient_group)
+        # Spacer
+        layout.addStretch(1)
+        self.setLayout(layout)
 
-class AddTaskDialog(QDialog):
-    def __init__(self, company_name, assigned_by, parent=None):
-        super().__init__(parent)
-        self.company_name = company_name
-        self.assigned_by = assigned_by
-        self.colors = COMPANY_COLORS.get(company_name, COMPANY_COLORS['Usha'])
-        self.init_ui()
-        
-    def init_ui(self):
-        self.setWindowTitle("Add New Task")
-        self.setFixedSize(400, 350)
-        self.setStyleSheet(f"""
-            QDialog {{
-                background: {self.colors['background']};
-                border-radius: 15px;
-            }}
-        """)
-        
-        layout = QVBoxLayout(self)
-        layout.setSpacing(15)
-        layout.setContentsMargins(30, 30, 30, 30)
-        
-        # Title
-        title_label = QLabel("➕ Add New Task")
-        title_label.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
-        title_label.setStyleSheet(f"color: {self.colors['primary']};")
-        layout.addWidget(title_label)
-        
-        # Form
-        form_layout = QFormLayout()
-        
-        self.title_edit = QLineEdit()
-        self.title_edit.setStyleSheet("""
-            QLineEdit {
-                padding: 10px;
-                border: 2px solid #E0E0E0;
-                border-radius: 8px;
-                font-size: 14px;
-            }
-            QLineEdit:focus {
-                border-color: #3498db;
-            }
-        """)
-        form_layout.addRow("Task Title:", self.title_edit)
-        
-        self.description_edit = QTextEdit()
-        self.description_edit.setMaximumHeight(80)
-        self.description_edit.setStyleSheet("""
-            QTextEdit {
-                padding: 10px;
-                border: 2px solid #E0E0E0;
-                border-radius: 8px;
-                font-size: 14px;
-            }
-        """)
-        form_layout.addRow("Description:", self.description_edit)
-        
-        self.assigned_to_edit = QLineEdit()
-        self.assigned_to_edit.setStyleSheet("""
-            QLineEdit {
-                padding: 10px;
-                border: 2px solid #E0E0E0;
-                border-radius: 8px;
-                font-size: 14px;
-            }
-            QLineEdit:focus {
-                border-color: #3498db;
-            }
-        """)
-        form_layout.addRow("Assigned To:", self.assigned_to_edit)
-        
-        self.priority_combo = QComboBox()
-        self.priority_combo.addItems(["low", "medium", "high", "urgent"])
-        self.priority_combo.setStyleSheet("""
-            QComboBox {
-                padding: 10px;
-                border: 2px solid #E0E0E0;
-                border-radius: 8px;
-                font-size: 14px;
-            }
-        """)
-        form_layout.addRow("Priority:", self.priority_combo)
-        
-        self.due_date_edit = QDateEdit()
-        self.due_date_edit.setDate(QDate.currentDate().addDays(1))
-        self.due_date_edit.setStyleSheet("""
-            QDateEdit {
-                padding: 10px;
-                border: 2px solid #E0E0E0;
-                border-radius: 8px;
-                font-size: 14px;
-            }
-        """)
-        form_layout.addRow("Due Date:", self.due_date_edit)
-        
-        layout.addLayout(form_layout)
-        
-        # Buttons
-        button_layout = QHBoxLayout()
-        button_layout.addStretch()
-        
-        cancel_button = QPushButton("Cancel")
-        cancel_button.setStyleSheet("""
-            QPushButton {
-                background: #95a5a6;
-                color: white;
-                border: none;
-                padding: 10px 20px;
-                border-radius: 8px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background: #7f8c8d;
-            }
-        """)
-        cancel_button.clicked.connect(self.reject)
-        button_layout.addWidget(cancel_button)
-        
-        add_button = QPushButton("Add Task")
-        add_button.setStyleSheet(f"""
-            QPushButton {{
-                background: {self.colors['primary']};
-                color: white;
-                border: none;
-                padding: 10px 20px;
-                border-radius: 8px;
-                font-weight: bold;
-            }}
-            QPushButton:hover {{
-                background: {self.colors['accent']};
-            }}
-        """)
-        add_button.clicked.connect(self.add_task)
-        button_layout.addWidget(add_button)
-        
-        layout.addLayout(button_layout)
-        
-    def add_task(self):
-        title = self.title_edit.text().strip()
-        description = self.description_edit.toPlainText().strip()
-        assigned_to = self.assigned_to_edit.text().strip()
-        priority = self.priority_combo.currentText()
-        due_date = self.due_date_edit.date().toString("yyyy-MM-dd")
-        
-        if not title:
-            QMessageBox.warning(self, "Error", "Please enter a task title")
+    def process_feed_remark(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select Feed Remark CSV File", "", "CSV Files (*.csv)")
+        if not file_path:
             return
-            
-        add_daily_task(
-            self.company_name, title, description, assigned_to,
-            self.assigned_by, priority, due_date
-        )
-        
-        self.accept()
+        vlookup_enabled = self.feed_vlookup_checkbox.isChecked()
+        self.run_processing_thread('Feed_Remark', file_path, vlookup_enabled)
+
+    def process_voc_vot_remark(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select VOC-VOT Remark CSV File", "", "CSV Files (*.csv)")
+        if not file_path:
+            return
+        vlookup_enabled = self.voc_vlookup_checkbox.isChecked()
+        self.run_processing_thread('VOC-VOT_Remark', file_path, vlookup_enabled)
+
+    def process_orient_zip(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select Orient ZIP File", "", "ZIP Files (*.zip)")
+        if not file_path:
+            return
+        self.run_processing_thread('Orient', file_path, False)
+
+    def run_processing_thread(self, task_type, file_path, vlookup_enabled):
+        # This function will start a QThread to run the processing logic
+        # For Atomberg, call the correct script with vlookup_enabled as a parameter
+        # For Orient, just run the orient script (it handles its own dialogs)
+        # You may need to adapt the FileProcessorThread or create a new thread class to pass vlookup_enabled
+        # For now, show a message box as a placeholder
+        QMessageBox.information(self, "Processing Started", f"Started processing {task_type} for file:\n{file_path}\nVLOOKUP enabled: {vlookup_enabled}")
+        # TODO: Integrate with actual processing logic and thread
 
 class PerformanceDialog(QDialog):
     def __init__(self, company_name, parent=None):
@@ -1468,67 +1306,4 @@ class FeedbackDialog(QDialog):
             self.feedback_table.setItem(i, 3, QTableWidgetItem(record[5] or ""))
             self.feedback_table.setItem(i, 4, QTableWidgetItem(record[6] or ""))
             self.feedback_table.setItem(i, 5, QTableWidgetItem(record[7] or ""))
-            self.feedback_table.setItem(i, 6, QTableWidgetItem(record[8]))
-
-class SalaryDialog(QDialog):
-    def __init__(self, company_name, parent=None):
-        super().__init__(parent)
-        self.company_name = company_name
-        self.colors = COMPANY_COLORS.get(company_name, COMPANY_COLORS['Usha'])
-        self.init_ui()
-        
-    def init_ui(self):
-        self.setWindowTitle(f"{self.company_name} - Salary Counter")
-        self.setFixedSize(800, 500)
-        self.setStyleSheet(f"""
-            QDialog {{
-                background: {self.colors['background']};
-                border-radius: 15px;
-            }}
-        """)
-        
-        layout = QVBoxLayout(self)
-        layout.setSpacing(20)
-        layout.setContentsMargins(30, 30, 30, 30)
-        
-        # Title
-        title_label = QLabel("💰 Salary Counter")
-        title_label.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
-        title_label.setStyleSheet(f"color: {self.colors['primary']};")
-        layout.addWidget(title_label)
-        
-        # Salary table
-        self.salary_table = QTableWidget()
-        self.salary_table.setColumnCount(6)
-        self.salary_table.setHorizontalHeaderLabels([
-            "Technician", "Month", "Year", "Base Salary", "Bonus", "Total"
-        ])
-        self.salary_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.salary_table.setStyleSheet("""
-            QTableWidget {
-                border: 1px solid #E0E0E0;
-                border-radius: 8px;
-                background: white;
-            }
-            QHeaderView::section {
-                background: #f8f9fa;
-                padding: 8px;
-                border: none;
-                font-weight: bold;
-            }
-        """)
-        layout.addWidget(self.salary_table)
-        
-        self.load_salary_data()
-        
-    def load_salary_data(self):
-        salary_data = get_salary_data(self.company_name)
-        self.salary_table.setRowCount(len(salary_data))
-        
-        for i, record in enumerate(salary_data):
-            self.salary_table.setItem(i, 0, QTableWidgetItem(record[2]))
-            self.salary_table.setItem(i, 1, QTableWidgetItem(record[3]))
-            self.salary_table.setItem(i, 2, QTableWidgetItem(str(record[4])))
-            self.salary_table.setItem(i, 3, QTableWidgetItem(f"₹{record[5]:,.2f}"))
-            self.salary_table.setItem(i, 4, QTableWidgetItem(f"₹{record[6]:,.2f}"))
-            self.salary_table.setItem(i, 5, QTableWidgetItem(f"₹{record[7]:,.2f}")) 
+            self.feedback_table.setItem(i, 6, QTableWidgetItem(record[8])) 

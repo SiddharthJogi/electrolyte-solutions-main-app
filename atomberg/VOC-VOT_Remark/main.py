@@ -8,6 +8,7 @@ from openpyxl.styles import PatternFill, Font, Border, Side, Alignment
 import win32com.client as win32
 import os
 import shutil
+from openpyxl.formatting.rule import CellIsRule
 
 print("""
 =======================================
@@ -188,6 +189,17 @@ def process_file(input_path, output_path):
             sheet1.column_dimensions[col[0].column_letter].width = 20
         for r in range(1, sheet1.max_row + 1):
             sheet1.row_dimensions[r].height = 40
+
+        # Conditional formatting for SLA column
+        red_fill = PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
+        green_fill = PatternFill(start_color="00FF00", end_color="00FF00", fill_type="solid")
+        orange_fill = PatternFill(start_color="FFA500", end_color="FFA500", fill_type="solid")
+        sheet1.conditional_formatting.add('B2:B' + str(sheet1.max_row),
+                                          CellIsRule(operator='equal', formula=['0'], fill=green_fill))
+        sheet1.conditional_formatting.add('B2:B' + str(sheet1.max_row),
+                                          CellIsRule(operator='equal', formula=['1'], fill=orange_fill))
+        sheet1.conditional_formatting.add('B2:B' + str(sheet1.max_row),
+                                          CellIsRule(operator='greaterThan', formula=['1'], fill=red_fill))
 
         # Insert formulas
         for i in range(2, sheet1.max_row + 1):

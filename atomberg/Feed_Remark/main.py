@@ -432,14 +432,13 @@ def process_file(input_path, output_path):
         # Conditional formatting for SLA column
         red_fill = PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
         green_fill = PatternFill(start_color="00FF00", end_color="00FF00", fill_type="solid")
+        orange_fill = PatternFill(start_color="FFA500", end_color="FFA500", fill_type="solid")
         sheet1.conditional_formatting.add('B2:B' + str(sheet1.max_row),
                                           CellIsRule(operator='equal', formula=['0'], fill=green_fill))
         sheet1.conditional_formatting.add('B2:B' + str(sheet1.max_row),
-                                          CellIsRule(operator='equal', formula=['1'], fill=green_fill))
+                                          CellIsRule(operator='equal', formula=['1'], fill=orange_fill))
         sheet1.conditional_formatting.add('B2:B' + str(sheet1.max_row),
-                                          CellIsRule(operator='notEqual', formula=['0'], fill=red_fill))
-        sheet1.conditional_formatting.add('B2:B' + str(sheet1.max_row),
-                                          CellIsRule(operator='notEqual', formula=['1'], fill=red_fill))
+                                          CellIsRule(operator='greaterThan', formula=['1'], fill=red_fill))
 
         # Adjust column widths for Sheet1
         column_widths_sheet1 = {
