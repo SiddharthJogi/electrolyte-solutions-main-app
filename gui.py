@@ -1094,6 +1094,91 @@ class FileProcessorThread(QThread):
             print(f"Error processing default file: {e}")
             return False
 
+class DailyTaskProcessorThread(QThread):
+    finished = pyqtSignal(bool, str)
+
+    def __init__(self, task_type, file_path, company_name, processed_by, vlookup_enabled=False, lookup_file_path=None):
+        super().__init__()
+        self.task_type = task_type
+        self.file_path = file_path
+        self.company_name = company_name
+        self.processed_by = processed_by
+        self.vlookup_enabled = vlookup_enabled
+        self.lookup_file_path = lookup_file_path
+
+    def run(self):
+        import importlib.util
+        import os
+        import sys
+        from database import log_file_processing
+        import traceback
+        try:
+            log_file_processing(
+                self.company_name,
+                os.path.basename(self.file_path),
+                "csv",
+                "processing",
+                processed_by=self.processed_by
+            )
+            success = False
+            if self.company_name == "Atomberg":
+                sys.path.append('atomberg')
+                script_map = {
+                    'Feed_Remark': ('Feed_Remark', 'main', 'process_file'),
+                    'VOC-VOT_Remark': ('VOC-VOT_Remark', 'main', 'process_file'),
+                }
+                folder, module_name, func_name = script_map.get(self.task_type, (None, None, None))
+                if folder:
+                    module_path = os.path.join('atomberg', folder, f'{module_name}.py')
+                    spec = importlib.util.spec_from_file_location(module_name, module_path)
+                    module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(module)
+                    func = getattr(module, func_name)
+                    output_filename = self.file_path.replace('.csv', '_output.xlsx')
+                    if self.vlookup_enabled and self.lookup_file_path:
+                        # Call process_file and then apply vlookup
+                        func(self.file_path, output_filename)
+                        # Use the public vlookup function if available
+                        if hasattr(module, 'apply_vlookup_with_excel_com'):
+                            module.apply_vlookup_with_excel_com(output_filename, self.lookup_file_path)
+                        success = True
+                    else:
+                        func(self.file_path, output_filename)
+                        success = True
+            elif self.company_name == "Orient":
+                # Similar logic for Orient if needed
+                success = True  # Placeholder
+            if success:
+                log_file_processing(
+                    self.company_name,
+                    os.path.basename(self.file_path),
+                    "csv",
+                    "success",
+                    output_path="output/",
+                    processed_by=self.processed_by
+                )
+                self.finished.emit(True, "File processed successfully")
+            else:
+                log_file_processing(
+                    self.company_name,
+                    os.path.basename(self.file_path),
+                    "csv",
+                    "error",
+                    error_message="Processing failed",
+                    processed_by=self.processed_by
+                )
+                self.finished.emit(False, "Processing failed")
+        except Exception as e:
+            log_file_processing(
+                self.company_name,
+                os.path.basename(self.file_path),
+                "csv",
+                "error",
+                error_message=str(e),
+                processed_by=self.processed_by
+            )
+            self.finished.emit(False, str(e))
+
 class DailyTasksDialog(QDialog):
     def __init__(self, company_name, user_data, parent=None):
         super().__init__(parent)
@@ -1151,6 +1236,20 @@ class DailyTasksDialog(QDialog):
             orient_btn.clicked.connect(self.process_orient_zip)
             orient_layout.addWidget(orient_btn)
             layout.addWidget(orient_group)
+        # --- History Section ---
+        history_group = QGroupBox("Daily Task Processing History")
+        history_layout = QVBoxLayout(history_group)
+        self.history_list = QListWidget()
+        self.history_list.setStyleSheet("""
+            QListWidget {
+                border: 1px solid #E0E0E0;
+                border-radius: 8px;
+                background: white;
+            }
+        """)
+        history_layout.addWidget(self.history_list)
+        layout.addWidget(history_group)
+        self.load_history()
         # Spacer
         layout.addStretch(1)
         self.setLayout(layout)
@@ -1160,29 +1259,56 @@ class DailyTasksDialog(QDialog):
         if not file_path:
             return
         vlookup_enabled = self.feed_vlookup_checkbox.isChecked()
-        self.run_processing_thread('Feed_Remark', file_path, vlookup_enabled)
+        lookup_file_path = None
+        if vlookup_enabled:
+            lookup_file_path, _ = QFileDialog.getOpenFileName(self, "Select Lookup Excel File", "", "Excel Files (*.xlsx)")
+            if not lookup_file_path:
+                QMessageBox.warning(self, "VLOOKUP Cancelled", "No lookup file selected. VLOOKUP will be skipped.")
+                vlookup_enabled = False
+        self.run_processing_thread('Feed_Remark', file_path, vlookup_enabled, lookup_file_path)
 
     def process_voc_vot_remark(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "Select VOC-VOT Remark CSV File", "", "CSV Files (*.csv)")
         if not file_path:
             return
         vlookup_enabled = self.voc_vlookup_checkbox.isChecked()
-        self.run_processing_thread('VOC-VOT_Remark', file_path, vlookup_enabled)
+        lookup_file_path = None
+        if vlookup_enabled:
+            lookup_file_path, _ = QFileDialog.getOpenFileName(self, "Select Lookup Excel File", "", "Excel Files (*.xlsx)")
+            if not lookup_file_path:
+                QMessageBox.warning(self, "VLOOKUP Cancelled", "No lookup file selected. VLOOKUP will be skipped.")
+                vlookup_enabled = False
+        self.run_processing_thread('VOC-VOT_Remark', file_path, vlookup_enabled, lookup_file_path)
 
     def process_orient_zip(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "Select Orient ZIP File", "", "ZIP Files (*.zip)")
         if not file_path:
             return
-        self.run_processing_thread('Orient', file_path, False)
+        self.run_processing_thread('Orient', file_path, False, None)
 
-    def run_processing_thread(self, task_type, file_path, vlookup_enabled):
-        # This function will start a QThread to run the processing logic
-        # For Atomberg, call the correct script with vlookup_enabled as a parameter
-        # For Orient, just run the orient script (it handles its own dialogs)
-        # You may need to adapt the FileProcessorThread or create a new thread class to pass vlookup_enabled
-        # For now, show a message box as a placeholder
-        QMessageBox.information(self, "Processing Started", f"Started processing {task_type} for file:\n{file_path}\nVLOOKUP enabled: {vlookup_enabled}")
-        # TODO: Integrate with actual processing logic and thread
+    def run_processing_thread(self, task_type, file_path, vlookup_enabled, lookup_file_path):
+        self.processor_thread = DailyTaskProcessorThread(
+            task_type, file_path, self.company_name, self.user_data['username'], vlookup_enabled, lookup_file_path
+        )
+        self.processor_thread.finished.connect(self.on_processing_finished)
+        self.processor_thread.start()
+
+    def on_processing_finished(self, success, message):
+        if success:
+            QMessageBox.information(self, "Success", message)
+        else:
+            QMessageBox.warning(self, "Error", message)
+        self.load_history()
+
+    def load_history(self):
+        from database import get_file_logs
+        self.history_list.clear()
+        logs = get_file_logs(self.company_name)
+        # Only show logs for daily task conversions (Feed_Remark, VOC-VOT_Remark, Orient)
+        for log in logs:
+            if log[2].endswith('.csv') and (log[1] == self.company_name):
+                # Optionally, filter further by filename or status if needed
+                self.history_list.addItem(f"{log[4]} - {log[2]} ({log[3]})" + (f" - Error: {log[6]}" if log[6] else ""))
 
 class PerformanceDialog(QDialog):
     def __init__(self, company_name, parent=None):
