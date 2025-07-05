@@ -216,7 +216,8 @@ def process_csv_data(input_path):
             'CALL ID': None, 'MODEL DESCRIPTION': None, 'CALL STAGE': None,
             'CUSTOMER NAME': None, 'ADDRESS': None,
             'PIN CODE': None, 'CONTACT NUMBER': None, 'ENGINEER NAME': None,
-            'CUSTOMER REMARKS': None, 'PENDING CALL PO': None
+            'CUSTOMER REMARKS': None, 'PENDING CALL PO': None,
+            'GROUP': None  # Added for CATEGORY column
         }
         for required_col in column_mapping.keys():
             for csv_col in df.columns:
@@ -237,6 +238,7 @@ def process_csv_data(input_path):
             'DAYS': parsed_datetimes,  # New column for DAYS buckets
             'TAT STATUS': parsed_datetimes,
             'MODEL DESCRIPTION': df[column_mapping['MODEL DESCRIPTION']] if column_mapping['MODEL DESCRIPTION'] else '',
+            'CATEGORY': df[column_mapping['GROUP']] if column_mapping['GROUP'] else '',  # New column
             'CALL STAGE': df[column_mapping['CALL STAGE']] if column_mapping['CALL STAGE'] else '',
             'CUSTOMER NAME': df[column_mapping['CUSTOMER NAME']] if column_mapping['CUSTOMER NAME'] else '',
             'ADDRESS': df[column_mapping['ADDRESS']] if column_mapping['ADDRESS'] else '',
@@ -290,7 +292,7 @@ def create_formatted_excel(df, output_path):
         worksheet = workbook.active
         worksheet.title = "Processed Data"
         
-        # Define column widths for all 18 columns (A to R)
+        # Define column widths for all 19 columns (A to S)
         column_widths = {
             1: 20,   # A: CALL ID
             2: 12,   # B: DATE
@@ -300,16 +302,17 @@ def create_formatted_excel(df, output_path):
             6: 20,   # F: DAYS (new column)
             7: 12,   # G: TAT STATUS
             8: 25,   # H: MODEL DESCRIPTION
-            9: 15,   # I: CALL STAGE
-            10: 20,  # J: CUSTOMER NAME
-            11: 30,  # K: ADDRESS
-            12: 10,  # L: PIN CODE
-            13: 15,  # M: CONTACT NUMBER
-            14: 20,  # N: ENGINEER NAME
-            15: 15,  # O: CUSTOMER REMARKS
-            16: 15,  # P: PENDING CALL PO
-            17: 20,  # Q: REMARK
-            18: 15   # R: SO_NUMBER
+            9: 15,   # I: CATEGORY (new column)
+            10: 15,  # J: CALL STAGE
+            11: 20,  # K: CUSTOMER NAME
+            12: 30,  # L: ADDRESS
+            13: 10,  # M: PIN CODE
+            14: 15,  # N: CONTACT NUMBER
+            15: 20,  # O: ENGINEER NAME
+            16: 15,  # P: CUSTOMER REMARKS
+            17: 15,  # Q: PENDING CALL PO
+            18: 20,  # R: REMARK
+            19: 15   # S: SO_NUMBER
         }
 
         # Apply column widths
@@ -353,13 +356,15 @@ def create_formatted_excel(df, output_path):
                     cell.value = formula
                     cell.number_format = '0'
                 elif col_name == 'DAYS' and value:
-                    formula = f'=IF(D{row_idx}="","",IF(D{row_idx}<=24,"0-24 hrs (D1)",' \
-                              f'IF(D{row_idx}<=48,"24-48 hrs (D2)",' \
-                              f'IF(D{row_idx}<=72,"48-72 hrs (D3)",">72hrs (D4)"))))'
+                    formula = f'=IF(D{row_idx}="","",IF(D{row_idx}<=24,"D1 (0-24Hrs)",' \
+                              f'IF(D{row_idx}<=48,"D2 (24-48Hrs)",' \
+                              f'IF(D{row_idx}<=72,"D3 (48-72 Hrs)","D4 (>72Hrs)"))))'
                     cell.value = formula
                 elif col_name == 'TAT STATUS' and value:
                     formula = f'=IF(E{row_idx}<>"",IF(E{row_idx}>0,"OUT TAT","IN TAT"),"")'
                     cell.value = formula
+                elif col_name == 'CATEGORY':
+                    cell.value = str(value) if pd.notna(value) else ""
                 else:
                     cell.value = str(value) if pd.notna(value) else ""
         
@@ -683,6 +688,7 @@ def main():
             f"• Text wrapping for readability\n"
             f"• Columns and rows optimized for minimal size\n"
             f"• CALL STATUS column removed\n"
+            f"• Added CATEGORY column from GROUP data\n"
         )
         
         if remark_choice:
